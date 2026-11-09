@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>dyver</title>
+<style>
+  :root { --bg:#f4f1ea; --card:#fffdf8; --ink:#1d1b18; --muted:#6f6a61; --accent:#b4532a; --line:#ddd6c8; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#16151a; --card:#201f26; --ink:#ece9e2; --muted:#9a958c; --accent:#e07a4b; --line:#34323b; }
+  }
+  * { box-sizing:border-box; }
+  html,body { height:100%; margin:0; }
+  body { background:var(--bg); color:var(--ink); font-family: Georgia, "Times New Roman", serif;
+         display:flex; align-items:center; justify-content:center; padding:16px; }
+  main { width:100%; max-width:360px; text-align:center; }
+  h1 { font-size:3.2rem; letter-spacing:.04em; margin:0 0 .2rem; font-weight:normal; }
+  p.sub { color:var(--muted); margin:0 0 2rem; font-style:italic; }
+  form { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:22px; }
+  label { display:block; font-size:.9rem; color:var(--muted); margin-bottom:.6rem; font-family:system-ui, sans-serif; }
+  input { width:100%; font-size:1.2rem; padding:.7rem .9rem; border-radius:10px; border:1px solid var(--line);
+          background:var(--bg); color:var(--ink); text-align:center; outline:none; }
+  input:focus { border-color:var(--accent); }
+  button { margin-top:12px; width:100%; font-size:1.05rem; padding:.7rem; border:0; border-radius:10px;
+           background:var(--accent); color:#fff; cursor:pointer; font-family:system-ui, sans-serif; }
+  .err { min-height:1.4em; margin-top:10px; color:var(--accent); font-family:system-ui, sans-serif; font-size:.9rem; }
+  form.shake { animation: shake .35s; }
+  @keyframes shake { 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+</style>
+</head>
+<body>
+<main>
+  <h1>dyver</h1>
+  <p class="sub">Bitte eintreten.</p>
+  <form id="f" autocomplete="off">
+    <label for="pw">Passwort</label>
+    <input id="pw" type="password" autofocus autocapitalize="off" spellcheck="false">
+    <button type="submit">Weiter</button>
+    <div class="err" id="err" role="alert"></div>
+  </form>
+</main>
+<script>
+// Passwort -> Ziel. Gespeichert sind nur SHA-256-Werte von "dyver:<passwort>".
+// Neues Passwort: Hash mit  printf "dyver:NEU" | sha256sum  erzeugen und hier eintragen.
+const ZIELE = {
+  "71cabd2498656d9639ea85dd2e376b46abdae417f82338e6687c71df85c5d5f4": "https://stories.dyver.de/",
+  "8ec0168de5ab806f4b901b83e24a9a5e0a78c518a4fb4b1ec085df8e70639fa6": "https://news.dyver.de/tim/",
+  "ed0000c0a5ba84284a8d733a277831c688267568918694704e97aff4cc193631": "https://news.dyver.de/mama/",
+  "e06b8095460b2456e85660d78032695add8528430bc14b941b07b5658cff481a": "https://news.dyver.de/wow/"
+};
+async function sha256(text) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join("");
+}
+const f = document.getElementById("f"), pw = document.getElementById("pw"), err = document.getElementById("err");
+f.addEventListener("submit", async e => {
+  e.preventDefault();
+  const ziel = ZIELE[await sha256("dyver:" + pw.value.trim().toLowerCase())];
+  if (ziel) { location.href = ziel; return; }
+  err.textContent = "Das Passwort kenne ich nicht.";
+  f.classList.remove("shake"); void f.offsetWidth; f.classList.add("shake");
+  pw.select();
+});
+</script>
+</body>
+</html>
