@@ -44,11 +44,21 @@
 // Passwort -> Ziel. Gespeichert sind nur SHA-256-Werte von "dyver:<passwort>".
 // Neues Passwort: Hash mit  printf "dyver:NEU" | sha256sum  erzeugen und hier eintragen.
 const ZIELE = {
-  "71cabd2498656d9639ea85dd2e376b46abdae417f82338e6687c71df85c5d5f4": "https://storys.dyver.de/",
+  // Geschichten: Ziel ist der Aufschließ-Link für storys.dyver.de, verschlüsselt mit dem Passwort selbst (AES-GCM).
+  "71cabd2498656d9639ea85dd2e376b46abdae417f82338e6687c71df85c5d5f4": { geheim: {"s":"SVKl4C6K4bDIZCKX0+MfEA==","i":"0OFPX9Yhi8PnMj2p","c":"oeHr2PIZwxAlfJ/AjyZUwDZNExGdlBaVM7YZUx0hfGeLhVasOKUdSXhWDfeBP9siNzygSlxFl7hGmWKsJN8CSCNBJxqNy4v4B/r3xMfeiWN6QSRSAEHmUUDybRqezhNFiZyc8ysORPRR4E3ByizP5S0wDYEQmfsOeNi2P8ZqEkaDsjHP"}, sonst: "https://storys.dyver.de/" },
   "8ec0168de5ab806f4b901b83e24a9a5e0a78c518a4fb4b1ec085df8e70639fa6": "//news.dyver.de/tim/",
   "ed0000c0a5ba84284a8d733a277831c688267568918694704e97aff4cc193631": "//news.dyver.de/mama/",
   "e06b8095460b2456e85660d78032695add8528430bc14b941b07b5658cff481a": "//news.dyver.de/wow/"
 };
+// Ohne HTTPS gibt es keine Browser-Krypto: dann auf die https-Adresse wechseln.
+if (location.protocol === "http:" && location.hostname.endsWith("dyver.de")) location.replace("https://" + location.host + location.pathname);
+// Entschlüsselt ein Ziel, das mit dem eingegebenen Passwort geschützt ist.
+async function entschluessle(g, passwort) {
+  const b = x => Uint8Array.from(atob(x), c => c.charCodeAt(0));
+  const basis = await crypto.subtle.importKey("raw", new TextEncoder().encode("dyver:" + passwort), "PBKDF2", false, ["deriveKey"]);
+  const key = await crypto.subtle.deriveKey({ name: "PBKDF2", salt: b(g.s), iterations: 250000, hash: "SHA-256" }, basis, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
+  return new TextDecoder().decode(await crypto.subtle.decrypt({ name: "AES-GCM", iv: b(g.i) }, key, b(g.c)));
+}
 // SHA-256: per Browser-Krypto, auf http (ohne Krypto) mit kleiner Eigenimplementierung.
 async function sha256(text) {
   const bytes = new TextEncoder().encode(text);
@@ -85,8 +95,14 @@ async function sha256(text) {
 const f = document.getElementById("f"), pw = document.getElementById("pw"), err = document.getElementById("err");
 f.addEventListener("submit", async e => {
   e.preventDefault();
-  const ziel = ZIELE[await sha256("dyver:" + pw.value.trim().toLowerCase())];
-  if (ziel) { location.href = ziel; return; }
+  const eingabe = pw.value.trim().toLowerCase();
+  const ziel = ZIELE[await sha256("dyver:" + eingabe)];
+  if (typeof ziel === "string") { location.href = ziel; return; }
+  if (ziel) {
+    let url = ziel.sonst;
+    try { if (window.crypto && crypto.subtle) url = await entschluessle(ziel.geheim, eingabe); } catch {}
+    location.href = url; return;
+  }
   err.textContent = "Das Passwort kenne ich nicht.";
   f.classList.remove("shake"); void f.offsetWidth; f.classList.add("shake");
   pw.select();
